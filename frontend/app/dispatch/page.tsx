@@ -202,95 +202,98 @@ export default function DispatchPage() {
           {/* マップビュー */}
           {tab === "map" && <MapView result={result} />}
 
-          {/* 手動調整モード切替 */}
-          {tab === "list" && <div className="flex justify-end mb-4 gap-3">
-            {editMode ? (
-              <>
-                <button
-                  onClick={handleSaveManual}
-                  disabled={loading}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
-                >
-                  保存
-                </button>
-                <button
-                  onClick={() => { setEditMode(false); loadResult(); }}
-                  className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-                >
-                  キャンセル
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setEditMode(true)}
-                className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-              >
-                手動調整
-              </button>
-            )}
-          </div>
+          {/* 一覧タブ */}
+          {tab === "list" && (
+            <>
+              <div className="flex justify-end mb-4 gap-3">
+                {editMode ? (
+                  <>
+                    <button
+                      onClick={handleSaveManual}
+                      disabled={loading}
+                      className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                    >
+                      保存
+                    </button>
+                    <button
+                      onClick={() => { setEditMode(false); loadResult(); }}
+                      className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                    >
+                      キャンセル
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setEditMode(true)}
+                    className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    手動調整
+                  </button>
+                )}
+              </div>
 
-          {/* 配達員ごとの配車結果（一覧タブのみ） */}
-          {tab === "list" && <div className="space-y-4">
-            {result.assignments.map((item) => {
-              const color = driverColorMap[item.driver_id] || COLORS[0];
-              return (
-                <div key={item.driver_id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  <div className={`flex items-center justify-between px-5 py-3 border-b border-gray-100`}>
-                    <div className="flex items-center gap-3">
-                      <span className={`text-sm font-bold px-3 py-1 rounded-full border ${color}`}>
-                        {item.driver_name}
-                      </span>
-                      <span className="text-xs text-gray-500">{item.total_jobs}件</span>
-                      <span className="text-xs text-gray-400">{item.total_distance_km} km</span>
+              <div className="space-y-4">
+                {result.assignments.map((item) => {
+                  const color = driverColorMap[item.driver_id] || COLORS[0];
+                  return (
+                    <div key={item.driver_id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                        <div className="flex items-center gap-3">
+                          <span className={`text-sm font-bold px-3 py-1 rounded-full border ${color}`}>
+                            {item.driver_name}
+                          </span>
+                          <span className="text-xs text-gray-500">{item.total_jobs}件</span>
+                          <span className="text-xs text-gray-400">{item.total_distance_km} km</span>
+                        </div>
+                      </div>
+                      {item.orders.length === 0 ? (
+                        <div className="px-5 py-4 text-sm text-gray-400">割り当てなし</div>
+                      ) : (
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 text-gray-500 text-xs">
+                            <tr>
+                              <th className="px-4 py-2 text-left">順</th>
+                              <th className="px-4 py-2 text-left">時間帯</th>
+                              <th className="px-4 py-2 text-left">配達先住所</th>
+                              <th className="px-4 py-2 text-left">備考</th>
+                              {editMode && <th className="px-4 py-2 text-left">担当変更</th>}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {item.orders.map((o, i) => (
+                              <tr key={o.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-2 text-gray-400">{i + 1}</td>
+                                <td className="px-4 py-2 font-mono text-gray-700">
+                                  {o.time_start}〜{o.time_end}
+                                </td>
+                                <td className="px-4 py-2 text-gray-800">{o.address}</td>
+                                <td className="px-4 py-2 text-gray-500">{o.notes || "—"}</td>
+                                {editMode && (
+                                  <td className="px-4 py-2">
+                                    <select
+                                      value={manualMap[o.id] ?? item.driver_id}
+                                      onChange={(e) =>
+                                        setManualMap({ ...manualMap, [o.id]: Number(e.target.value) })
+                                      }
+                                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    >
+                                      {drivers.map((d) => (
+                                        <option key={d.id} value={d.id}>{d.name}</option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
                     </div>
-                  </div>
-                  {item.orders.length === 0 ? (
-                    <div className="px-5 py-4 text-sm text-gray-400">割り当てなし</div>
-                  ) : (
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 text-gray-500 text-xs">
-                        <tr>
-                          <th className="px-4 py-2 text-left">順</th>
-                          <th className="px-4 py-2 text-left">時間帯</th>
-                          <th className="px-4 py-2 text-left">配達先住所</th>
-                          <th className="px-4 py-2 text-left">備考</th>
-                          {editMode && <th className="px-4 py-2 text-left">担当変更</th>}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {item.orders.map((o, i) => (
-                          <tr key={o.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-2 text-gray-400">{i + 1}</td>
-                            <td className="px-4 py-2 font-mono text-gray-700">
-                              {o.time_start}〜{o.time_end}
-                            </td>
-                            <td className="px-4 py-2 text-gray-800">{o.address}</td>
-                            <td className="px-4 py-2 text-gray-500">{o.notes || "—"}</td>
-                            {editMode && (
-                              <td className="px-4 py-2">
-                                <select
-                                  value={manualMap[o.id] ?? item.driver_id}
-                                  onChange={(e) =>
-                                    setManualMap({ ...manualMap, [o.id]: Number(e.target.value) })
-                                  }
-                                  className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                >
-                                  {drivers.map((d) => (
-                                    <option key={d.id} value={d.id}>{d.name}</option>
-                                  ))}
-                                </select>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              );
-            })}
-          </div>}
+                  );
+                })}
+              </div>
+            </>
+          )}
         </>
       )}
     </div>
