@@ -18,6 +18,7 @@ export default function OrdersPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
+    recipient_name: "",
     address: "",
     time_start: "10:00",
     time_end: "12:00",
@@ -38,7 +39,7 @@ export default function OrdersPage() {
     if (!form.address.trim()) return;
     try {
       await createOrder({ ...form, delivery_date: date });
-      setForm({ address: "", time_start: "10:00", time_end: "12:00", notes: "" });
+      setForm({ recipient_name: "", address: "", time_start: "10:00", time_end: "12:00", notes: "" });
       setShowForm(false);
       await load();
     } catch {
@@ -111,14 +112,24 @@ export default function OrdersPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
           <h2 className="text-sm font-semibold text-gray-600 mb-4">新規オーダー</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">配達先名</label>
+              <input
+                type="text"
+                value={form.recipient_name}
+                onChange={(e) => setForm({ ...form, recipient_name: e.target.value })}
+                placeholder="例：山田 太郎"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
               <label className="block text-xs text-gray-500 mb-1">配達先住所 *</label>
               <input
                 type="text"
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
                 placeholder="例：東京都渋谷区○○1-2-3"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -126,7 +137,7 @@ export default function OrdersPage() {
               <select
                 value={form.time_start}
                 onChange={(e) => setForm({ ...form, time_start: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {TIME_SLOTS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -136,7 +147,7 @@ export default function OrdersPage() {
               <select
                 value={form.time_end}
                 onChange={(e) => setForm({ ...form, time_end: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {TIME_SLOTS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -148,7 +159,7 @@ export default function OrdersPage() {
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 placeholder="任意"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -184,6 +195,7 @@ export default function OrdersPage() {
               <tr>
                 <th className="px-4 py-3 text-left">No</th>
                 <th className="px-4 py-3 text-left">時間帯</th>
+                <th className="px-4 py-3 text-left">配達先名</th>
                 <th className="px-4 py-3 text-left">配達先住所</th>
                 <th className="px-4 py-3 text-left">備考</th>
                 <th className="px-4 py-3 text-left">担当</th>
@@ -197,6 +209,7 @@ export default function OrdersPage() {
                   <td className="px-4 py-3 font-mono text-gray-700">
                     {o.time_start}〜{o.time_end}
                   </td>
+                  <td className="px-4 py-3 text-gray-800">{o.recipient_name || "—"}</td>
                   <td className="px-4 py-3 text-gray-800">{o.address}</td>
                   <td className="px-4 py-3 text-gray-500">{o.notes || "—"}</td>
                   <td className="px-4 py-3">

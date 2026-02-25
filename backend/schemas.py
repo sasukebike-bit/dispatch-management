@@ -21,6 +21,7 @@ class DriverResponse(BaseModel):
 
 class OrderCreate(BaseModel):
     delivery_date: date
+    recipient_name: Optional[str] = None
     address: str
     time_start: str   # "HH:MM"
     time_end: str     # "HH:MM"
@@ -31,6 +32,7 @@ class OrderCreate(BaseModel):
 class OrderResponse(BaseModel):
     id: int
     delivery_date: date
+    recipient_name: Optional[str]
     address: str
     time_start: str
     time_end: str

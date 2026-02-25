@@ -17,6 +17,7 @@ class Order(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     delivery_date = Column(Date, nullable=False)
+    recipient_name = Column(String(200), nullable=True)
     address = Column(String(500), nullable=False)
     time_start = Column(String(5), nullable=False)   # "HH:MM"
     time_end = Column(String(5), nullable=False)     # "HH:MM"

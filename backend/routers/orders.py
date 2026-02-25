@@ -21,6 +21,7 @@ def to_response(order: Order) -> OrderResponse:
     return OrderResponse(
         id=order.id,
         delivery_date=order.delivery_date,
+        recipient_name=order.recipient_name,
         address=order.address,
         time_start=order.time_start,
         time_end=order.time_end,
@@ -49,6 +50,7 @@ async def create_order(body: OrderCreate, db: Session = Depends(get_db)):
 
     order = Order(
         delivery_date=body.delivery_date,
+        recipient_name=body.recipient_name,
         address=body.address,
         time_start=body.time_start,
         time_end=body.time_end,
@@ -75,6 +77,7 @@ async def update_order(order_id: int, body: OrderCreate, db: Session = Depends(g
             lat, lng = result
 
     order.delivery_date = body.delivery_date
+    order.recipient_name = body.recipient_name
     order.address = body.address
     order.time_start = body.time_start
     order.time_end = body.time_end
@@ -112,6 +115,7 @@ async def import_csv(delivery_date: date = Query(...), file: UploadFile = File(.
             lat, lng = result
         order = Order(
             delivery_date=delivery_date,
+            recipient_name=row.get("recipient_name", ""),
             address=row["address"],
             time_start=row["time_start"].strip(),
             time_end=row["time_end"].strip(),

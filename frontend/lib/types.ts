@@ -6,6 +6,7 @@ export interface Driver {
 export interface Order {
   id: number;
   delivery_date: string;
+  recipient_name?: string;
   address: string;
   time_start: string;
   time_end: string;
