@@ -1,7 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { runDispatch, getDispatchResult, manualAssign, getDrivers, getPdfUrl } from "@/lib/api";
 import { DispatchResult, Driver, Order } from "@/lib/types";
+
+const MapView = dynamic(() => import("@/components/MapView"), { ssr: false });
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -21,6 +24,7 @@ export default function DispatchPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [editMode, setEditMode] = useState(false);
+  const [tab, setTab] = useState<"list" | "map">("list");
 
   // 手動調整用: order_id -> driver_id のマップ
   const [manualMap, setManualMap] = useState<Record<number, number>>({});
@@ -171,8 +175,35 @@ export default function DispatchPage() {
             </div>
           )}
 
+          {/* タブ切替 */}
+          <div className="flex gap-1 mb-5 border-b border-gray-200">
+            <button
+              onClick={() => setTab("list")}
+              className={`px-5 py-2 text-sm font-medium border-b-2 transition-colors ${
+                tab === "list"
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              一覧
+            </button>
+            <button
+              onClick={() => setTab("map")}
+              className={`px-5 py-2 text-sm font-medium border-b-2 transition-colors ${
+                tab === "map"
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              マップ
+            </button>
+          </div>
+
+          {/* マップビュー */}
+          {tab === "map" && <MapView result={result} />}
+
           {/* 手動調整モード切替 */}
-          <div className="flex justify-end mb-4 gap-3">
+          {tab === "list" && <div className="flex justify-end mb-4 gap-3">
             {editMode ? (
               <>
                 <button
@@ -199,8 +230,8 @@ export default function DispatchPage() {
             )}
           </div>
 
-          {/* 配達員ごとの配車結果 */}
-          <div className="space-y-4">
+          {/* 配達員ごとの配車結果（一覧タブのみ） */}
+          {tab === "list" && <div className="space-y-4">
             {result.assignments.map((item) => {
               const color = driverColorMap[item.driver_id] || COLORS[0];
               return (
@@ -259,7 +290,7 @@ export default function DispatchPage() {
                 </div>
               );
             })}
-          </div>
+          </div>}
         </>
       )}
     </div>
