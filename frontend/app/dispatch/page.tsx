@@ -61,8 +61,8 @@ export default function DispatchPage() {
       });
       setManualMap(map);
       setEditMode(false);
-    } catch {
-      setError("自動配車の実行に失敗しました");
+    } catch (e) {
+      setError("自動配車の実行に失敗しました: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setLoading(false);
     }
@@ -264,7 +264,7 @@ export default function DispatchPage() {
                               <tr key={o.id} className="hover:bg-gray-50">
                                 <td className="px-4 py-2 text-gray-400">{i + 1}</td>
                                 <td className="px-4 py-2 font-mono text-gray-700">
-                                  {o.time_start}〜{o.time_end}
+                                  {o.time_start}
                                 </td>
                                 <td className="px-4 py-2 text-gray-800">{o.address}</td>
                                 <td className="px-4 py-2 text-gray-500">{o.notes || "—"}</td>

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from datetime import date
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Response, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Order, Driver, Assignment
@@ -15,6 +15,7 @@ def order_to_response(order: Order, driver_id: int = None, driver_name: str = No
     return OrderResponse(
         id=order.id,
         delivery_date=order.delivery_date,
+        recipient_name=order.recipient_name,
         address=order.address,
         time_start=order.time_start,
         time_end=order.time_end,
@@ -29,45 +30,49 @@ def order_to_response(order: Order, driver_id: int = None, driver_name: str = No
 @router.post("/run", response_model=DispatchResult)
 def run_auto_dispatch(delivery_date: date = Query(...), db: Session = Depends(get_db)):
     """自動配車を実行し、結果をDBに保存して返す"""
-    orders = db.query(Order).filter(Order.delivery_date == delivery_date).all()
-    drivers = db.query(Driver).all()
+    try:
+        orders = db.query(Order).filter(Order.delivery_date == delivery_date).all()
+        drivers = db.query(Driver).all()
 
-    # 既存の割り当てをリセット
-    db.query(Assignment).filter(Assignment.delivery_date == delivery_date).delete()
-    db.commit()
+        # 既存の割り当てをリセット
+        db.query(Assignment).filter(Assignment.delivery_date == delivery_date).delete()
+        db.commit()
 
-    result = run_dispatch(orders, drivers)
+        result = run_dispatch(orders, drivers)
 
-    # 結果をDBに保存
-    for driver_id, assigned_orders in result["assigned"].items():
-        for order in assigned_orders:
-            assignment = Assignment(
-                order_id=order.id,
+        # 結果をDBに保存
+        for driver_id, assigned_orders in result["assigned"].items():
+            for order in assigned_orders:
+                assignment = Assignment(
+                    order_id=order.id,
+                    driver_id=driver_id,
+                    delivery_date=delivery_date,
+                )
+                db.add(assignment)
+        db.commit()
+
+        # レスポンス組み立て
+        driver_map = {d.id: d for d in drivers}
+        assignment_items = []
+        for driver_id, assigned_orders in result["assigned"].items():
+            driver = driver_map[driver_id]
+            sorted_orders = sorted(assigned_orders, key=lambda o: o.time_start)
+            assignment_items.append(DispatchResultItem(
                 driver_id=driver_id,
-                delivery_date=delivery_date,
-            )
-            db.add(assignment)
-    db.commit()
+                driver_name=driver.name,
+                orders=[order_to_response(o, driver_id, driver.name) for o in sorted_orders],
+                total_jobs=len(assigned_orders),
+                total_distance_km=round(total_distance(sorted_orders), 2),
+            ))
 
-    # レスポンス組み立て
-    driver_map = {d.id: d for d in drivers}
-    assignment_items = []
-    for driver_id, assigned_orders in result["assigned"].items():
-        driver = driver_map[driver_id]
-        sorted_orders = sorted(assigned_orders, key=lambda o: o.time_start)
-        assignment_items.append(DispatchResultItem(
-            driver_id=driver_id,
-            driver_name=driver.name,
-            orders=[order_to_response(o, driver_id, driver.name) for o in sorted_orders],
-            total_jobs=len(assigned_orders),
-            total_distance_km=round(total_distance(sorted_orders), 2),
-        ))
-
-    return DispatchResult(
-        date=delivery_date,
-        assignments=assignment_items,
-        unassigned_orders=[order_to_response(o) for o in result["unassigned"]],
-    )
+        return DispatchResult(
+            date=delivery_date,
+            assignments=assignment_items,
+            unassigned_orders=[order_to_response(o) for o in result["unassigned"]],
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/result", response_model=DispatchResult)

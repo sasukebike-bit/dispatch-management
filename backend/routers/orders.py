@@ -3,6 +3,7 @@ import csv
 import io
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Order, Assignment
@@ -94,8 +95,15 @@ def delete_order(order_id: int, db: Session = Depends(get_db)):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    db.delete(order)
-    db.commit()
+    try:
+        if order.assignment:
+            db.delete(order.assignment)
+            db.flush()
+        db.delete(order)
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/import-csv", response_model=list[OrderResponse], status_code=201)

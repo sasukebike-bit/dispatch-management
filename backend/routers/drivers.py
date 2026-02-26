@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 from database import get_db
-from models import Driver
+from models import Driver, Assignment
 from schemas import DriverCreate, DriverResponse
 
 router = APIRouter(prefix="/drivers", tags=["drivers"])
@@ -26,5 +27,12 @@ def delete_driver(driver_id: int, db: Session = Depends(get_db)):
     driver = db.query(Driver).filter(Driver.id == driver_id).first()
     if not driver:
         raise HTTPException(status_code=404, detail="Driver not found")
-    db.delete(driver)
-    db.commit()
+    try:
+        for assignment in driver.assignments:
+            db.delete(assignment)
+        db.flush()
+        db.delete(driver)
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

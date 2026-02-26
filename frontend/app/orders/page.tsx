@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import { getOrders, createOrder, deleteOrder, importOrdersCSV } from "@/lib/api";
+import { getOrders, createOrder, updateOrder, deleteOrder, importOrdersCSV } from "@/lib/api";
 import { Order } from "@/lib/types";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -10,6 +10,8 @@ const TIME_SLOTS = [
   "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00",
 ];
 
+const emptyForm = { recipient_name: "", address: "", time: "10:00", notes: "" };
+
 export default function OrdersPage() {
   const [date, setDate] = useState(today());
   const [orders, setOrders] = useState<Order[]>([]);
@@ -17,13 +19,11 @@ export default function OrdersPage() {
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState({
-    recipient_name: "",
-    address: "",
-    time_start: "10:00",
-    time_end: "12:00",
-    notes: "",
-  });
+  const [form, setForm] = useState(emptyForm);
+
+  // 編集モーダル用
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [editForm, setEditForm] = useState(emptyForm);
 
   const load = async () => {
     try {
@@ -38,12 +38,47 @@ export default function OrdersPage() {
   const handleAdd = async () => {
     if (!form.address.trim()) return;
     try {
-      await createOrder({ ...form, delivery_date: date });
-      setForm({ recipient_name: "", address: "", time_start: "10:00", time_end: "12:00", notes: "" });
+      await createOrder({
+        recipient_name: form.recipient_name,
+        address: form.address,
+        time_start: form.time,
+        time_end: form.time,
+        notes: form.notes,
+        delivery_date: date,
+      });
+      setForm(emptyForm);
       setShowForm(false);
       await load();
     } catch {
       setError("追加に失敗しました");
+    }
+  };
+
+  const handleEditOpen = (order: Order) => {
+    setEditingOrder(order);
+    setEditForm({
+      recipient_name: order.recipient_name ?? "",
+      address: order.address,
+      time: order.time_start,
+      notes: order.notes ?? "",
+    });
+  };
+
+  const handleUpdate = async () => {
+    if (!editingOrder || !editForm.address.trim()) return;
+    try {
+      await updateOrder(editingOrder.id, {
+        recipient_name: editForm.recipient_name,
+        address: editForm.address,
+        time_start: editForm.time,
+        time_end: editForm.time,
+        notes: editForm.notes,
+        delivery_date: date,
+      });
+      setEditingOrder(null);
+      await load();
+    } catch {
+      setError("更新に失敗しました");
     }
   };
 
@@ -52,8 +87,8 @@ export default function OrdersPage() {
     try {
       await deleteOrder(id);
       await load();
-    } catch {
-      setError("削除に失敗しました");
+    } catch (e) {
+      setError("削除に失敗しました: " + (e instanceof Error ? e.message : String(e)));
     }
   };
 
@@ -133,26 +168,16 @@ export default function OrdersPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">希望時間帯（開始）</label>
+              <label className="block text-xs text-gray-500 mb-1">配達時間</label>
               <select
-                value={form.time_start}
-                onChange={(e) => setForm({ ...form, time_start: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={form.time}
+                onChange={(e) => setForm({ ...form, time: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {TIME_SLOTS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">希望時間帯（終了）</label>
-              <select
-                value={form.time_end}
-                onChange={(e) => setForm({ ...form, time_end: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {TIME_SLOTS.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div className="sm:col-span-2">
               <label className="block text-xs text-gray-500 mb-1">備考</label>
               <input
                 type="text"
@@ -194,7 +219,7 @@ export default function OrdersPage() {
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
               <tr>
                 <th className="px-4 py-3 text-left">No</th>
-                <th className="px-4 py-3 text-left">時間帯</th>
+                <th className="px-4 py-3 text-left">時間</th>
                 <th className="px-4 py-3 text-left">配達先名</th>
                 <th className="px-4 py-3 text-left">配達先住所</th>
                 <th className="px-4 py-3 text-left">備考</th>
@@ -206,9 +231,7 @@ export default function OrdersPage() {
               {orders.map((o, i) => (
                 <tr key={o.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-400">{i + 1}</td>
-                  <td className="px-4 py-3 font-mono text-gray-700">
-                    {o.time_start}〜{o.time_end}
-                  </td>
+                  <td className="px-4 py-3 font-mono text-gray-700">{o.time_start}</td>
                   <td className="px-4 py-3 text-gray-800">{o.recipient_name || "—"}</td>
                   <td className="px-4 py-3 text-gray-800">{o.address}</td>
                   <td className="px-4 py-3 text-gray-500">{o.notes || "—"}</td>
@@ -221,7 +244,13 @@ export default function OrdersPage() {
                       <span className="text-gray-300 text-xs">未割当</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right space-x-3">
+                    <button
+                      onClick={() => handleEditOpen(o)}
+                      className="text-blue-500 hover:text-blue-700 text-xs font-medium transition-colors"
+                    >
+                      編集
+                    </button>
                     <button
                       onClick={() => handleDelete(o.id)}
                       className="text-red-500 hover:text-red-700 text-xs font-medium transition-colors"
@@ -235,6 +264,71 @@ export default function OrdersPage() {
           </table>
         )}
       </div>
+
+      {/* 編集モーダル */}
+      {editingOrder && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-6 w-full max-w-lg mx-4">
+            <h2 className="text-sm font-semibold text-gray-700 mb-4">オーダーを編集</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">配達先名</label>
+                <input
+                  type="text"
+                  value={editForm.recipient_name}
+                  onChange={(e) => setEditForm({ ...editForm, recipient_name: e.target.value })}
+                  placeholder="例：山田 太郎"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">配達先住所 *</label>
+                <input
+                  type="text"
+                  value={editForm.address}
+                  onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                  placeholder="例：東京都渋谷区○○1-2-3"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">配達時間</label>
+                <select
+                  value={editForm.time}
+                  onChange={(e) => setEditForm({ ...editForm, time: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {TIME_SLOTS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">備考</label>
+                <input
+                  type="text"
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                  placeholder="任意"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={handleUpdate}
+                className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              >
+                保存
+              </button>
+              <button
+                onClick={() => setEditingOrder(null)}
+                className="border border-gray-300 text-gray-600 px-5 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
